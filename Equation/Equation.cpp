@@ -6,30 +6,28 @@
 #include <string>
 #include "resource.h"
 #include <sstream>
-#include "IntegralLib.h"
 #include <set>
 #include <algorithm>
-#ifndef UNICODE  
-typedef std::string String;
-#else
-typedef std::wstring String;
-#endif
-#define MAX_LOADSTRING 100
+#include <stdexcept>
 using namespace std;
+#include "IntegralLib.h"
+
+
+#define MAX_LOADSTRING 100
+
 // Глобальные переменные:
 HINSTANCE hInst;                                // текущий экземпляр
 WCHAR szTitle[MAX_LOADSTRING];                  // Текст строки заголовка
 WCHAR szWindowClass[MAX_LOADSTRING];            // имя класса главного окна
-HWND hWnd;
-HWND dialog;
-HWND hEditA, hEditB, hEditQ, hEditEps;
+HWND hWnd;                                      // дескриптор окна
+HWND dialog;                                    // дескриптор диалогового окна  
 // Отправить объявления функций, включенных в этот модуль кода:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    MainDialog(HWND, UINT, WPARAM, LPARAM);
-
+//Главная функция
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -149,53 +147,31 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return 0;
 }
+//Функция для получения и форматирования результата вычислений
 string GetEquationRoots(double a, double b, double q, double eps)
 {
     string result = "";
-    DefiniteIntegral Integral;
-    Integral.a = a;
-    Integral.b = b;
-    Integral.iterations = 1;
-    unsigned long n = 1;
-    double sum1, sum2;
-    DefiniteIntegral r1, r2;
-    r1 = CalculateIntegral(Integral);
-    sum1 = r1.result;
-    do
-    {
-        n *= 2;
-        r1.iterations = n;
-        sum2 = sum1;
-        r2 = r1;
-        r1 = CalculateIntegral(r1);
-        sum1 = r1.result;
-    } while (fabs(sum1 - sum2) > eps);
-    set<double, RootComparator> X{ RootComparator { eps } };
-    Equation eq;
-    DefiniteIntegral x0;
-    int found = 1;
-    eq.integral = r1;
-    eq.q = q;
-    for (int i = a; i < b; i++)
-    {
-        X.insert(CalculateRoot(eq, eps, i, i + 1));
-    }
+    int found = 0;
+    DefiniteIntegral integral;
+    integral.a = a;
+    integral.b = b;
+    integral = CalculateIntegralWithPrecision(integral, eps);
+    set<double> X;
+    CalculateRoots(integral, q, eps, X);
     set<double>::iterator i;
     for (i = X.begin(); i != X.end(); ++i)
     {
-        r1.b = *i;
-        x0 = CalculateIntegral(r1);
-        if (fabs(x0.result - eq.q) < eps)
-        {
-            result.append("X"+to_string(found)+"="+to_string(*i)+"\r\n");
-            found++;
-        }
+        result.append("X"+to_string(found+1)+" = "+to_string(*i)+"\r\n");
+        integral.b = *i;
+        integral = CalculateIntegral(integral);
+        result.append("Интеграл (X=" + to_string(*i) + ") = " + to_string(integral.result) + "\r\n");
+        result.append("\r\n");
+        found++;
     }
-    if (found == 1)result = "Метод не сходится. Невозожно найти корни";
-    return result;
-    
+    if (found == 0)result = "Метод не сходится. Невозожно найти корни";
+    return result;  
 }
-
+//Функция для перевода переменной типа STRING в тип WSTRING
 std::wstring s2ws(const std::string& s)
 {
     int len;
@@ -207,6 +183,32 @@ std::wstring s2ws(const std::string& s)
     delete[] buf;
     return r;
 }
+
+//Функция для перевода переменной типа TCHAR в тип STRING
+std::string tchar_to_string(TCHAR* a)
+{
+   string s;
+#ifndef UNICODE
+    s = a;
+#else
+    std::wstring wStr = a;
+    s = std::string(wStr.begin(), wStr.end());
+#endif
+    return s;
+}
+
+//Функция для получения значения типа DOUBLE из поля для ввода
+//Если введенное значение не является числом, выбрасывается исключение
+double GetDlgItemDouble (HWND hDlg, int id) 
+{
+    TCHAR buff[256];
+    double dValue;
+    LPTSTR endPtr;
+    GetDlgItemText(hDlg, id, buff, 255);
+    string strValue = tchar_to_string(buff);
+    return stod(strValue);
+}
+//Обработчик
 INT_PTR CALLBACK MainDialog(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
@@ -219,24 +221,28 @@ INT_PTR CALLBACK MainDialog(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPara
         switch(LOWORD(wParam))
         {
         case IDC_BUTTON1:
-            TCHAR buff[1024];
-            double a, b, q, eps, dValue;
-            LPTSTR endPtr;
-            GetDlgItemText(hDlg, IDC_EDIT1, buff, 255);
-            dValue = _tcstod(buff, &endPtr);
-            a = dValue;
-            GetDlgItemText(hDlg, IDC_EDIT2, buff, 255);
-            dValue = _tcstod(buff, &endPtr);
-            b = dValue;
-            GetDlgItemText(hDlg, IDC_EDIT3, buff, 255);
-            dValue = _tcstod(buff, &endPtr);
-            q = dValue;
-            GetDlgItemText(hDlg, IDC_EDIT4, buff, 255);
-            dValue = _tcstod(buff, &endPtr);
-            eps = dValue;
-            string result = GetEquationRoots(a, b, q, eps);
-            wstring tmp = s2ws(result);
-            SetDlgItemText(hDlg, IDC_EDIT6, tmp.c_str());
+            SetDlgItemText(hDlg, IDC_BUTTON1, TEXT("Вычисление корней..."));
+            double a, b, q, eps;
+            try
+            {
+                //Получаем значения из формы
+                a = GetDlgItemDouble(hDlg, IDC_EDIT1);
+                b = GetDlgItemDouble(hDlg, IDC_EDIT2);
+                q = GetDlgItemDouble(hDlg, IDC_EDIT3);
+                eps = GetDlgItemDouble(hDlg, IDC_EDIT4);
+                //Получаем результат
+                string result = GetEquationRoots(a, b, q, eps);
+                wstring tmp = s2ws(result);
+                //Выводим результат
+                SetDlgItemText(hDlg, IDC_EDIT6, tmp.c_str());
+                SetDlgItemText(hDlg, IDC_BUTTON1, TEXT("Вычислить"));
+            }
+            catch (std::exception& e)
+            {
+                //В случае ошибки показываем соответствующее сообщение
+                MessageBox(hDlg, TEXT("Один из параметров не является числом!"), TEXT("Ошибка"), NULL);
+                SetDlgItemText(hDlg, IDC_BUTTON1, TEXT("Вычислить"));
+            } 
             break;
         }
         break;
