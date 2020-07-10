@@ -1,27 +1,27 @@
 #include <math.h>
-//Р¤СѓРЅРєС†РёСЏ y=f(t)
+//Подынтегральное выражение
 double CalculateExpression(double x)
 {
-    return 2*x-cos(x);
+    return 2*x+cos(x);
 }
 /*
-РЎС‚СЂСѓРєС‚СѓСЂР° РѕРїРёСЃС‹РІР°СЋС‰Р°СЏСЏ РѕРїСЂРµРґРµР»РµРЅРЅС‹Р№ РёРЅС‚РµРіСЂР°Р»
-a - РЅРёР¶РЅРёР№ РїСЂРµРґРµР»
-b - РІРµСЂС…РЅРёР№ РїСЂРµРґРµР»
-result - СЂРµР·СѓР»СЊС‚Р°С‚
-iterations - РєРѕР»-РІРѕ РёС‚РµСЂР°С†РёР№ РґР»СЏ РІС‹С‡РёСЃР»РµРЅРёСЏ Р·Р°РґР°РЅРЅРѕР№ С‚РѕС‡РЅРѕСЃС‚Рё
+Структура описывающаяя определенный интеграл
+a - нижний предел
+b - верхний предел
+result - результат
+iterations - кол-во итераций для вычисления заданной точности
 */
 struct DefiniteIntegral
 {
     double result;
-    int iterations;
+    int iterations = 0;
     double a;
     double b;
 };
 /*
-РЎС‚СЂСѓРєС‚СѓСЂР° РѕРїРёСЃС‹РІР°СЋС‰Р°СЏ РёРЅС‚РµРіСЂР°Р»СЊРЅРѕРµ СѓСЂР°РІРЅРµРЅРёРµ
-integral - РёРЅС‚РµРіСЂР°Р»
-q - РїСЂР°РІР°СЏ С‡Р°СЃС‚СЊ СѓСЂР°РІРЅРµРЅРёСЏ
+Структура описывающая интегральное уравнение
+integral - интеграл
+q - правая часть уравнения
 */
 struct Equation
 {
@@ -29,8 +29,8 @@ struct Equation
     double q;
 };
 /*
-Comparator РґР»СЏ СЃСЂР°РІРЅРµРЅРёСЏ РєРѕСЂРЅРµР№ СѓСЂР°РІРЅРµРЅРёСЏ
-РџРѕР·РІРѕР»СЏРµС‚ СѓР±РёСЂР°С‚СЊ Р±Р»РёР·РєРёРµ РєРѕСЂРЅРё, РµСЃР»Рё РёС… СЂР°Р·РЅРѕСЃС‚СЊ РјРµРЅСЊС€Рµ Р·Р°РґР°РЅРЅРѕРіРѕ E
+Comparator для сравнения корней уравнения
+Позволяет убирать близкие корни, если их разность меньше заданного E
 */
 struct RootComparator {
     RootComparator(double eps = 0) :e(eps) {}
@@ -41,17 +41,17 @@ struct RootComparator {
 private:
     const double e;
 };
-//Р¤СѓРЅРєС†РёСЏ РІС‹С‡РёСЃР»РµРЅРёСЏ РёРЅС‚РµРіСЂР°Р»Р° РјРµС‚РѕРґРѕРј Р»РµРІС‹С… РїСЂСЏРјРѕСѓРіРѕР»СЊРЅРёРєРѕРІ
+//Функция вычисления интеграла методом левых прямоугольников
 DefiniteIntegral CalculateIntegral(DefiniteIntegral integral) {
     double x, h;
     double sum = 0.0;
     double fx;
     if (integral.iterations < 1)integral.iterations = 1;
-    //Р’С‹С‡РёСЃР»СЏРµРј С€Р°Рі СЂР°Р·Р±РёРµРЅРёСЏ
+    //Вычисляем шаг разбиения
     h = (integral.b - integral.a) / integral.iterations;
     DefiniteIntegral result = integral;
     int i = 0;
-    //Р’С‹С‡РёСЃР»СЏРµРј РёРЅС‚РµРіСЂР°Р» РјРµС‚РѕРґРѕРј Р»РµРІС‹С… РїСЂСЏРјРѕСѓРіРѕР»СЊРЅРёРєРѕРІ
+    //Вычисляем интеграл методом левых прямоугольников
     for (i = 0; i < integral.iterations; i++) {
         x = integral.a + i * h;
         fx = CalculateExpression(x);
@@ -60,21 +60,21 @@ DefiniteIntegral CalculateIntegral(DefiniteIntegral integral) {
     result.result = sum * h;
     return result;
 }
-//Р¤СѓРЅРєС†РёСЏ РІС‹С‡РёСЃР»РµРЅРёСЏ РёРЅС‚РµРіСЂР°Р»Р° СЃ Р·Р°РґР°РЅРЅРѕР№ С‚РѕС‡РЅРѕСЃС‚СЊСЋ Р•
+//Функция вычисления интеграла с заданной точностью Е
 DefiniteIntegral CalculateIntegralWithPrecision(DefiniteIntegral Integral, double eps)
 {
     Integral.iterations = 1;
     unsigned long n = 1;
     double sum1, sum2;
     DefiniteIntegral r1, r2;
-    //Р’С‹С‡РёСЃР»СЏРµРј РёРЅС‚РµРіСЂР°Р» РІ 1 РїСЂРёР±Р»РёР¶РµРЅРёРё
+    //Вычисляем интеграл в 1 приближении
     r1 = CalculateIntegral(Integral);
     sum1 = r1.result;
-    //Р’С‹С‡РёСЃР»СЏРµРј РёРЅС‚РµРіСЂР°Р» СЃ Р·Р°РґР°РЅРЅРѕР№ С‚РѕС‡РЅРѕСЃС‚СЊСЋ 
-    //РЈСЃР»РѕРІРёРµ РѕСЃС‚Р°РЅРѕРІРєРё - РјРѕРґСѓР»СЊ СЂР°Р·РЅРѕСЃС‚Рё РґРІСѓС… РїСЂРёР±Р»РёР¶РµРЅРёР№ РјРµРЅСЊС€Рµ Р·Р°РґР°РЅРЅРѕРіРѕ Р•
+    //Вычисляем интеграл с заданной точностью. 
+    //Условие остановки - модуль разности двух приближений меньше заданного Е
     do
     {
-        //РЎ РєР°Р¶РґРѕР№ РёС‚РµСЂР°С†РёРµР№ СѓРІРµР»РёС‡РёРІР°РµРј СЂР°Р·Р±РёРµРЅРёРµ РІ 2 СЂР°Р·Р°
+        //С каждой итерацией увеличиваем разбиение в 2 раза
         n *= 2;
         r1.iterations = n;
         sum2 = sum1;
@@ -84,7 +84,7 @@ DefiniteIntegral CalculateIntegralWithPrecision(DefiniteIntegral Integral, doubl
     } while (fabs(sum1 - sum2) > eps);
     return r1;
 }
-//Р¤СѓРЅРєС†РёСЏ РІС‹С‡РёСЃР»РµРЅРёСЏ РєРѕСЂРЅСЏ c С‚РѕС‡РЅРѕСЃС‚СЊСЋ Р• РїСЂРё Р·Р°РґР°РЅРЅС‹С… РїСЂРёР±Р»РёР¶РµРЅРёСЏС… x0 Рё x1
+//Функция вычисления корня c точностью Е при заданных приближениях x0 и x1
 double CalculateRoot(Equation eq, double eps, double x0, double x1)
 {
     double raz, ss1, temp, xR = x1;
@@ -94,27 +94,27 @@ double CalculateRoot(Equation eq, double eps, double x0, double x1)
     r2 = eq.integral;
     r1.b = x1;
     r2.b = x0;
-    //Р’С‹С‡РёСЃР»СЏРµРј Р·РЅР°С‡РµРЅРёРµ Р»РµРІРѕР№ С‡Р°СЃС‚Рё СѓСЂР°РІРЅРµРЅРёСЏ РґР»СЏ 2 РЅР°С‡Р°Р»СЊРЅС‹С… РїСЂРёР±Р»РёР¶РµРЅРёР№ РєРѕСЂРЅСЏ
+    //Вычисляем значение левой части уравнения для 2 начальных приближений корня
     r1 = CalculateIntegral(r1);
     r2 = CalculateIntegral(r2);
-    //РќР°С…РѕРґРёРј РїСЂРёР±Р»РёР¶РµРЅРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ РєРѕСЂРЅСЏ РјРµС‚РѕРґРѕРј СЃРµРєСѓС‰РёС…
-    //РЈСЃР»РѕРІРёРµ РѕСЃС‚Р°РЅРѕРІРєРё - РјРѕРґСѓР»СЊ СЂР°Р·РЅРѕСЃС‚Рё С‚РµРєСѓС‰РµРіРѕ Рё РїСЂРµРґС‹РґСѓС‰РµРіРѕ РєРѕСЂРЅРµР№ РјРµРЅСЊС€Рµ Р·Р°РґР°РЅРЅРѕРіРѕ Р•
+    //Находим приближенное значение корня методом секущих
+    //Условие остановки - модуль разности текущего и предыдущего корней меньше заданного Е
     do
     {
-        //Р’С‹С‡РёСЃР»СЏРµРј РЅРѕРІРѕРµ РїСЂРёР±Р»РёР¶РµРЅРёРµ РєРѕСЂРЅСЏ
+        //Вычисляем новое приближение корня
         xR = xR - (xR - x0) / ((r1.result - eq.q) - (r2.result - eq.q)) * (r1.result - eq.q);
         raz = xR - x1;
         x0 = x1;
         x1 = xR;
         r1.b = x1;
         r2.b = x0;
-        //Р’С‹С‡РёСЃР»СЏРµРј Р·РЅР°С‡РµРЅРёРµ Р»РµРІРѕР№ С‡Р°СЃС‚Рё СѓСЂР°РІРЅРµРЅРёСЏ РґР»СЏ С‚РµРєСѓС‰РµРіРѕ Рё РїСЂРµРґС‹РґСѓС‰РµРіРѕ РїСЂРёР±Р»РёР¶РµРЅРёР№
+        //Вычисляем значение левой части уравнения для текущего и предыдущего приближений
         r1 = CalculateIntegral(r1);
         r2 = CalculateIntegral(r2);
     } while (fabs(raz) > eps);
     return xR;
 }
-//Р¤СѓРЅРєС†РёСЏ РїРѕР»СѓС‡РµРЅРёСЏ РІСЃРµС… РєРѕСЂРЅРµР№ СѓСЂР°РІРЅРµРЅРёСЏ РЅР° РѕС‚СЂРµР·РєРµ [a;b] СЃ С‚РѕС‡РЅРѕСЃС‚СЊСЋ Р•
+//Функция получения всех корней уравнения на отрезке [a;b] с точностью Е
 void CalculateRoots(DefiniteIntegral integral, double q, double eps, set<double>& result)
 {
     set<double, RootComparator> X{ RootComparator { eps } };
@@ -122,20 +122,12 @@ void CalculateRoots(DefiniteIntegral integral, double q, double eps, set<double>
     eq.integral = integral;
     eq.q = q;
     DefiniteIntegral x0;
-    //Р’С‹С‡РёСЃР»СЏРµРј РІСЃРµ РєРѕСЂРЅРё РЅР° РѕС‚СЂРµР·РєРµ [a;b], СЂР°Р·Р±РёРІР°СЏ РѕС‚СЂРµР·РѕРІ РЅР° СЂР°РІРЅС‹Рµ С‡Р°СЃС‚Рё
+    double root;
+    //Вычисляем все корни на отрезке [a;b], разбивая отрезов на равные части
     for (int i = eq.integral.a; i < eq.integral.b; i++)
     {
-        X.insert(CalculateRoot(eq, eps, i, i + 1));
+        root = CalculateRoot(eq, eps, i, i + 1);
+        if(root>=eq.integral.a-0.01 && root <= integral.b+0.01) X.insert(root);
     }
-    //РЈР±РёСЂР°РµРј РѕРґРёРЅР°РєРѕРІС‹Рµ РєРѕСЂРЅРё Рё РєРѕСЂРЅРё, РєРѕС‚РѕСЂС‹Рµ РѕС‚Р»РёС‡Р°СЋС‚СЃСЏ РјРµРЅСЊС€Рµ С‡РµРј РЅР° E
-    set<double>::iterator i;
-    for (i = X.begin(); i != X.end(); ++i)
-    {
-        eq.integral.b = *i;
-        x0 = CalculateIntegral(eq.integral);
-        if (fabs(x0.result - eq.q) < eps)
-        {
-            result.insert(*i);
-        }
-    }
+    result.insert(X.begin(), X.end());
 }
